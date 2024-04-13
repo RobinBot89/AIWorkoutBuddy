@@ -1,7 +1,12 @@
 from datetime import datetime
 import PySimpleGUI as sg
 import FileHandler
-import threading
+import os
+import pandas as pd
+import time
+
+timer_running = False
+elapsed_secs = 0
 
 def start_layout():
     # Define the layout of the window
@@ -25,6 +30,7 @@ def start_layout():
 
 # Function to update muscle group checkboxes based on the workout type selection
 def update_muscle_group_selection(values):
+
     muscle_groups = ['Arms', 'Torso', 'Legs', 'Posterior']
     upper_body_groups = ['Arms', 'Torso']
     lower_body_groups = ['Legs', 'Posterior']
@@ -40,21 +46,42 @@ def update_muscle_group_selection(values):
             window[muscle].update(disabled=muscle not in whole_body_groups, value=muscle in whole_body_groups)
 
 
-# Place this function outside the event loop, after the load_exercises_from_ini function
-def generate_workout_window(workout_plan, num_sets=2):
+def generate_workout_window(workout_plan, duration, num_sets=2):
+    # Define the directory where exercise data is stored
+    exercise_data_directory = "Exercise Data"
+
     # Exercise layout list that will be included within the scrollable column
+
+    # Layout for the main workout window
     exercise_layout = []
 
-    # Add exercises, sets, and reps inputs to the exercise layout
+    # Loop through each exercise in the workout plan
     for exercise in workout_plan:
+        # Convert exercise name to filename
+        exercise_file = os.path.join(exercise_data_directory, f"{exercise.replace(' ', '_').lower()}.csv")
+
+        # Check if file exists and read the last row
+        if os.path.exists(exercise_file):
+            df = pd.read_csv(exercise_file)
+            last_session = df.iloc[-1]
+        else:
+            last_session = None  # Handle case where there is no previous data
+
         exercise_layout.append([sg.Text(f"{exercise}", size=(20, 1))])
+
+        # Add inputs for sets and reps, with adjacent text displaying last session data
         for i in range(num_sets):
             reps_key = f"{exercise}_Reps_Set{i + 1}"
             weight_key = f"{exercise}_Weight_Set{i + 1}"
+            previous_reps = last_session[f'{i + 1} Reps'] if last_session is not None else 'N/A'
+            previous_weight = last_session[f'{i + 1} Weight'] if last_session is not None else 'N/A'
+
             exercise_layout.extend([
                 [sg.Text(f"Set {i + 1}:", size=(5, 1)),
                  sg.Input(size=(10, 1), key=reps_key), sg.Text('Reps', size=(4, 1)),
-                 sg.Input(size=(10, 1), key=weight_key), sg.Text('lbs', size=(2, 1))]
+                 sg.Text(f"Last: {previous_reps}", size=(8, 1), text_color='pink'),
+                 sg.Input(size=(10, 1), key=weight_key), sg.Text('lbs', size=(2, 1)),
+                 sg.Text(f"Last: {previous_weight} lbs", size=(12, 1), text_color='pink')]
             ])
 
     # Scrollable column that contains the exercise layout
@@ -63,12 +90,15 @@ def generate_workout_window(workout_plan, num_sets=2):
     # Final layout for the window that includes the scrollable column
     final_layout = [
         [sg.Text('Your Workout Plan', font=("Helvetica", 16))],
+        [sg.Text(f"Planned Duration: {duration}", text_color='red', font=('Helvetica', 16))],
+        [sg.Text('00:00', size=(10, 1), font=('Helvetica', 24), justification='center', key='-TIMER-')],
+        [sg.Button("Start Timer"),sg.Button("Pause Timer")],
         [scrollable_column],
         [sg.Button('Finish Workout')]
     ]
 
     # Create the window with the final layout
-    return sg.Window('Workout Session', final_layout, finalize=True, resizable=True)
+    return final_layout
 
 
 def collect_workout_data(values, workout_plan, num_sets):
@@ -99,7 +129,7 @@ update_muscle_group_selection({'Upper': True, 'Lower': False})
 
 # Event Loop
 while True:
-    event, values = window.read()
+    event, values = window.read(timeout=100)
     if event == sg.WIN_CLOSED or event == 'Cancel':
         break
 
@@ -117,22 +147,45 @@ while True:
         print(workout_plan)
         if len(workout_plan)>0:
             window.close()
-            window = generate_workout_window(workout_plan,numSets)
+            wo_layout = generate_workout_window(workout_plan,duration, numSets)
+            window = sg.Window('Workout Session', wo_layout, finalize=True, resizable=True,)
+
         else:
             sg.popup(f"{duration} is not enough time for {",".join(selected_muscles)}. Add more time or choose another muscle-group.")
 
+    if event == 'Start Timer':
+        timer_running = True
+        # Get the current time and extract the second
+        last_time = datetime.now()
+        last_second = last_time.second
+
+    elif event == 'Pause Timer':
+        timer_running = False
     if event == 'Finish Workout':
+        timer_running = False
+        weightLifted = 0
         # Collect data from the form
-        workout_data_collected = collect_workout_data(values, workout_plan, 3)
+        workout_data_collected = collect_workout_data(values, workout_plan, numSets)
         # Iterate over collected workout data and pass to the update_or_create_exercise_file function
         for exercise, data in workout_data_collected.items():
             exercise_data = {'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-            weightLifted = 0
-            for i in range(1, numSets + 1):
-                exercise_data[f'{i} Weight'] = data['Weight'][i - 1] if data['Weight'][i - 1] else 'NaN'
-                exercise_data[f'{i} Reps'] = data['Reps'][i - 1] if data['Reps'][i - 1] else 'NaN'
-                if data['Weight'][i - 1] and data['Reps'][i - 1]:
-                    weightLifted = weightLifted + (int(data['Weight'][i - 1]) * int(data['Reps'][i - 1]))
+
+            for i in range(1, numSets+1):  # Assuming 5 sets per exercise
+                weight = 0  # Default value
+                reps = 0  # Default value
+
+                # Check if the current set's data is available and update accordingly
+                if i - 1 < len(data['Weight']):
+                    weight = data['Weight'][i - 1] if data['Weight'][i - 1] else 'NaN'
+
+                if i - 1 < len(data['Reps']):
+                    reps = data['Reps'][i - 1] if data['Reps'][i - 1] else 'NaN'
+                    weightLifted = weightLifted + int(weight)*int(reps)
+
+                # Store the data
+                exercise_data[f'{i} Weight'] = weight
+                exercise_data[f'{i} Reps'] = reps
+
             # Create individual Exercise File
             FileHandler.update_or_create_exercise_file(exercise, exercise_data,logType=1)
             # Create overall Workout Log File
@@ -144,8 +197,23 @@ while True:
         # Break or continue as needed
         break
 
+    # Update the timer if running
+    if timer_running:
+        current_time = datetime.now()
+        current_second = current_time.second
+        if last_second != current_second:
+            elapsed_secs = elapsed_secs+1
+            last_second = current_second
+            window['-TIMER-'].update(f"{int(elapsed_secs // 60):02}:{int(elapsed_secs % 60):02}")
+
+
+
+
+
+
 window.close()
 for csvFile in FileHandler.csvNamesList:
     FileHandler.drawChart(csvFile,logType=1)
+
 
 
