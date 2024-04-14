@@ -180,7 +180,7 @@ while True:
 
                 if i - 1 < len(data['Reps']):
                     reps = data['Reps'][i - 1] if data['Reps'][i - 1] else 'NaN'
-                    weightLifted = weightLifted + int(weight)*int(reps)
+                    weightLifted = weightLifted + int(float(weight))*int(float(reps))
 
                 # Store the data
                 exercise_data[f'{i} Weight'] = weight
