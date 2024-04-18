@@ -86,7 +86,7 @@ def generate_workout(selected_group, duration, exercises_by_equipment):
 
 
 csvNamesList = []
-def update_or_create_exercise_file(logName, logData,logType):
+def update_or_create_exercise_file(logName, logData,logType,duration=0):
     # Define the directory and file path
     directory = "Exercise Data"
     filename = f"{logName.replace(' ', '_')}.csv"
@@ -118,6 +118,7 @@ def update_or_create_exercise_file(logName, logData,logType):
         data["MuscleGroups"] = muscle_groups_str
         data["EquipmentUsed"] = equipment_used_str
         data["WeightLifted"] = logData.get("WeightLifted", 0)
+        data["Duration"] = duration
 
     # Convert the dictionary to a DataFrame
     df_new_entry = pd.DataFrame(data)

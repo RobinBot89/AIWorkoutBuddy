@@ -178,7 +178,18 @@ while True:
                 if i - 1 < len(data['Weight']):
                     weight = data['Weight'][i - 1] if data['Weight'][i - 1] else 'NaN'
 
+                    # Clean up any invalid int/float characters here, in case user enters string
+                    try:
+                        float(weight)
+                    except:
+                        weight = 0
+
                 if i - 1 < len(data['Reps']):
+                    # Clean up any invalid int/float characters here, in case user enters string
+                    try:
+                        float(reps)
+                    except:
+                        reps = 0
                     reps = data['Reps'][i - 1] if data['Reps'][i - 1] else 'NaN'
                     weightLifted = weightLifted + int(float(weight))*int(float(reps))
 
@@ -193,7 +204,7 @@ while True:
             workoutData["MuscleGroups"] = selected_muscles
             workoutData["EquipmentUsed"] = equipmentUsed
             workoutData["WeightLifted"] = weightLifted
-        FileHandler.update_or_create_exercise_file("WorkoutLog", workoutData, logType=2)
+        FileHandler.update_or_create_exercise_file("WorkoutLog", workoutData, logType=2, duration = duration)
         # Break or continue as needed
         break
 
