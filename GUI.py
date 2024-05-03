@@ -190,7 +190,7 @@ while True:
                         float(reps)
                     except:
                         reps = 0
-                    reps = data['Reps'][i - 1] if data['Reps'][i - 1] else 'NaN'
+                    reps = data['Reps'][i - 1] if data['Reps'][i - 1] else 0
                     weightLifted = weightLifted + int(float(weight))*int(float(reps))
 
                 # Store the data
