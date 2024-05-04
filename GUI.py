@@ -176,7 +176,7 @@ while True:
 
                 # Check if the current set's data is available and update accordingly
                 if i - 1 < len(data['Weight']):
-                    weight = data['Weight'][i - 1] if data['Weight'][i - 1] else 'NaN'
+                    weight = data['Weight'][i - 1] if data['Weight'][i - 1] else 0
 
                     # Clean up any invalid int/float characters here, in case user enters string
                     try:
