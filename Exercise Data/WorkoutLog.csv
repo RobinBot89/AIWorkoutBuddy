@@ -8,4 +8,6 @@ Timestamp,MuscleGroups,EquipmentUsed,WeightLifted,Duration
 2024-04-19 12:05:00,"arms, torso","barbell,dumbbells",13210,90
 2024-05-03 10:30:00,"arms, torso","bands,barbell",9052,80
 2024-05-03 16:28:45,"arms, torso","kettlebells, barbell",7135,30
-2024-05-04 15:53:11,"legs, posterior","barbell",5060,30
+2024-05-04 15:53:11,"legs, posterior",barbell,5060,30
+2024-05-09 18:52:25,"arms, torso","kettlebells, x3-bar, barbell",15341,60 minutes
+2024-05-10 19:35:53,"legs, posterior",barbell,7440,30 minutes
