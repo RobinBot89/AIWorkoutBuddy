@@ -60,11 +60,11 @@ def generate_workout(selected_group, duration, exercises_by_equipment):
 
     # Choose the equipment
     # Increase the likelihood of selecting dumbbells, kettlebells, and barbells by 60%
-    favored_equipment = ['dumbbell', 'kettlebell', 'barbell']
+    favored_equipment = ['BalBrd']# 'dumbbell', 'kettlebell', 'barbell'
     equipment_choices = list(exercises_by_equipment.keys())
 
     # Adjust the list by adding favored equipment more times
-    adjusted_equipment_choices = equipment_choices + [eq for eq in equipment_choices if eq in favored_equipment] * 2
+    adjusted_equipment_choices = equipment_choices + [eq for eq in equipment_choices if eq in favored_equipment] * 3
     random.shuffle(adjusted_equipment_choices)  # Shuffle the adjusted equipment choices for variety
 
     workout_plan = []
