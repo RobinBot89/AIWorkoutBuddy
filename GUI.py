@@ -4,9 +4,12 @@ import FileHandler
 import os
 import pandas as pd
 import time
+import re
 
 timer_running = False
 elapsed_secs = 0
+total_calories = 0
+workout_started = False
 
 def start_layout():
     # Define the layout of the window
@@ -75,13 +78,15 @@ def generate_workout_window(workout_plan, duration, num_sets=2):
             weight_key = f"{exercise}_Weight_Set{i + 1}"
             previous_reps = last_session[f'{i + 1} Reps'] if last_session is not None else 'N/A'
             previous_weight = last_session[f'{i + 1} Weight'] if last_session is not None else 'N/A'
+            calories_key =  f"{exercise}_Calories_Set{i + 1}"
 
             exercise_layout.extend([
                 [sg.Text(f"Set {i + 1}:", size=(5, 1)),
                  sg.Input(size=(10, 1), key=reps_key), sg.Text('Reps', size=(4, 1)),
                  sg.Text(f"Last: {previous_reps}", size=(8, 1), text_color='pink'),
                  sg.Input(size=(10, 1), key=weight_key), sg.Text('lbs', size=(2, 1)),
-                 sg.Text(f"Last: {previous_weight} lbs", size=(12, 1), text_color='pink')]
+                 sg.Text(f"Last: {previous_weight} lbs", size=(12, 1), text_color='pink'),
+                 sg.Text(f" 0 Cals",key = calories_key, size=(12, 1), text_color='pink')]
             ])
 
     # Scrollable column that contains the exercise layout
@@ -90,6 +95,7 @@ def generate_workout_window(workout_plan, duration, num_sets=2):
     # Final layout for the window that includes the scrollable column
     final_layout = [
         [sg.Text('Your Workout Plan', font=("Helvetica", 16))],
+        [sg.Text(f"Total Calories Burned: 0 cals", key="-TOTAL_CALS-", text_color='pink')],
         [sg.Text(f"Planned Duration: {duration}", text_color='red', font=('Helvetica', 16))],
         [sg.Text('00:00', size=(10, 1), font=('Helvetica', 24), justification='center', key='-TIMER-')],
         [sg.Button("Start Timer"),sg.Button("Pause Timer")],
@@ -100,7 +106,7 @@ def generate_workout_window(workout_plan, duration, num_sets=2):
     # Create the window with the final layout
     return final_layout
 
-
+# Called at end to process data in input fields
 def collect_workout_data(values, workout_plan, num_sets):
     workout_data = {}
     for exercise in workout_plan:
@@ -121,6 +127,54 @@ def collect_workout_data(values, workout_plan, num_sets):
         workout_data[exercise] = exercise_data
     return workout_data
 
+# Update Calories as Input fields are filled out
+def update_calories_burned(values, workout_plan, num_sets):
+    caloric_data = {}
+    global total_calories
+    total_calories = 0
+    for exercise in workout_plan:
+        exercise_data = {'Set': [], 'Calories': []}
+        for set_num in range(num_sets):
+            reps_key = f"{exercise}_Reps_Set{set_num + 1}"
+            weight_key = f"{exercise}_Weight_Set{set_num + 1}"
+            reps = values.get(reps_key, None)
+            weight = values.get(weight_key, None)
+
+            # Convert empty strings to None
+            reps = None if reps == '' else reps
+            weight = None if weight == '' else weight
+
+            if (reps is None) or (weight is None):
+                weight_moved = 0
+                reps = 0
+                weight = 0
+            else:
+                reps = float(remove_non_numeric(reps))
+                weight = float(remove_non_numeric(weight))
+                weight_moved = reps * weight
+
+            # Determine Calories Burned per set
+            caloric_multiplier = 0
+            if reps <= 5:
+                caloric_multiplier = 0.10
+            if reps > 5:
+                caloric_multiplier = 0.075
+            if reps >= 10:
+                caloric_multiplier = 0.05
+
+            calories = int(weight_moved * caloric_multiplier)
+            total_calories = total_calories + calories
+            cal_key = f"{exercise}_Calories_Set{set_num + 1}"
+
+            window[cal_key].update(f"{calories} Cals")
+            window["-TOTAL_CALS-"].update(f"Total Calories Burned: {total_calories} Cals")
+
+        caloric_data[exercise] = exercise_data
+
+    return caloric_data
+
+def remove_non_numeric(text):
+    return re.sub(r'[^0-9.]', '', text)  # Keeps only digits and decimal points
 
 # Create the window
 window = sg.Window('AI Workout Buddy', start_layout(), finalize=True)
@@ -137,6 +191,7 @@ while True:
         update_muscle_group_selection(values)
 
     if event == 'Start Workout':
+        workout_started = True
         workout_type = 'Upper Body' if values['Upper'] else 'Lower Body'
         program = 'Strength' if values['Strength'] else 'BodyBuilding' if values['BodyBuilding'] else 'Hybrid'
         duration = values['Duration']
@@ -217,7 +272,8 @@ while True:
             last_second = current_second
             window['-TIMER-'].update(f"{int(elapsed_secs // 60):02}:{int(elapsed_secs % 60):02}")
 
-
+    if workout_started:
+        update_calories_burned(values, workout_plan, numSets)
 
 
 
@@ -225,6 +281,8 @@ while True:
 window.close()
 for csvFile in FileHandler.csvNamesList:
     FileHandler.drawChart(csvFile,logType=1)
+
+sg.popup("Workout Complete!", f"You burned {total_calories} kcal!", title="Workout Summary")
 
 
 
